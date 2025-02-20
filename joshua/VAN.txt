@@ -1,0 +1,375 @@
+
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Manage Designs</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link 
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        integrity="sha512-pEMFWe6ZVy+gIu/qGVp90EQonqFzYV+K0sRcQ4dkVrB+hQxSC2kICccBKC4K3N0SPcY2PStK1dhKc+/vfVw5jQ=="
+        crossorigin="anonymous" 
+        referrerpolicy="no-referrer" 
+    />
+    <style>
+        body {
+            background: #f8f9fa;
+            font-family: Arial, sans-serif;
+        }
+        .top-info-bar {
+            background: #343a40;
+            color: white;
+            padding: 10px 0;
+            margin-bottom: 20px;
+        }
+        .design-card {
+            transition: transform 0.2s ease;
+            margin-bottom: 20px;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .design-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .card-img-top {
+            height: 200px;
+            object-fit: cover;
+        }
+        .design-status {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.9);
+        }
+        .status-yes {
+            color: #28a745;
+        }
+        .status-no {
+            color: #dc3545;
+        }
+        .btn-sublimation {
+            background-color: #198754;
+            color: white;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .btn-sublimation:disabled {
+            background-color: #6c757d;
+        }
+        .btn-edit {
+            background-color: #0d6efd;
+            color: white;
+            width: 100%;
+        }
+        .btn-design {
+            background-color: #ffc107;
+            color: black;
+            width: 100%;
+        }
+        .modal-header {
+            background: #0d6efd;
+            color: white;
+        }
+        .section-header {
+            background: #f8f9fa;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid #0d6efd;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<?php include __DIR__ . '/../templates/admin_navbar.php'; ?>
+
+<!-- Top Info Bar -->
+<div class="top-info-bar">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <strong>Current User:</strong> <?= htmlspecialchars($current_user) ?>
+            </div>
+            <div class="col-md-6 text-end">
+                <strong>Current Date and Time (UTC):</strong> <?= htmlspecialchars($current_timestamp) ?>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Display Errors -->
+    <?php if (!empty($errors)): ?>
+        <div class="alert alert-danger">
+            <?php foreach ($errors as $err): ?>
+                <div><?= htmlspecialchars($err) ?></div>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+
+    <!-- Display Success Messages -->
+    <?php if (!empty($success)): ?>
+        <div class="alert alert-success">
+            <?php foreach ($success as $msg): ?>
+                <div><?= htmlspecialchars($msg) ?></div>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+
+    <!-- Designs Grid -->
+    <div class="row">
+        <?php if (empty($designs)): ?>
+            <div class="col-12">
+                <div class="alert alert-info">
+                    No designs found. Please add designs from the projects section.
+                </div>
+            </div>
+        <?php else: ?>
+            <?php foreach ($designs as $design): 
+                $isComplete = isDesignComplete($design);
+                $projectImage = !empty($design['project_image']) ? 
+                    '../' . $design['project_image'] : 
+                    'https://via.placeholder.com/300x200.png?text=No+Image';
+            ?>
+                <div class="col-md-4 mb-4">
+                    <div class="card design-card">
+                        <!-- Project Image -->
+                        <img src="<?= htmlspecialchars($projectImage) ?>" 
+                             class="card-img-top" 
+                             alt="Project Image">
+                        
+                        <!-- Design Status -->
+                        <div class="design-status">
+                            With Design: 
+                            <span class="<?= $isComplete ? 'status-yes' : 'status-no' ?>">
+                                <?= $isComplete ? 'Yes' : 'No' ?>
+                            </span>
+                        </div>
+                        
+                        <!-- Card Body -->
+                        <div class="card-body">
+                            <h5 class="card-title"><?= htmlspecialchars($design['project_name']) ?></h5>
+                            <p class="card-text">
+                                <strong>Customer:</strong> <?= htmlspecialchars($design['customer_name']) ?>
+                            </p>
+                            
+                            <!-- Action Buttons -->
+                            <button class="btn btn-design mb-2" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#designModal<?= $design['id'] ?>">
+                                <i class="fas fa-upload"></i> Design
+                            </button>
+                            
+                            <button class="btn btn-edit mb-2" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#editDesignModal<?= $design['id'] ?>">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            
+                            <form method="POST" onsubmit="return confirm('Are you sure you want to move this to Ready Print?');">
+                                <input type="hidden" name="action" value="ready_print">
+                                <input type="hidden" name="design_id" value="<?= $design['id'] ?>">
+                                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                                <button type="submit" 
+                                        class="btn btn-sublimation" 
+                                        <?= !$isComplete ? 'disabled title="Please complete all design files."' : '' ?>>
+                                    <i class="fas fa-print"></i> Ready Print
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Design Modal: Upload/View Design Files -->
+                <div class="modal fade" id="designModal<?= $design['id'] ?>" tabindex="-1" aria-labelledby="designModalLabel<?= $design['id'] ?>" aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <form method="POST" enctype="multipart/form-data">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="designModalLabel<?= $design['id'] ?>">Design Files for <?= htmlspecialchars($design['project_name']) ?></h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <input type="hidden" name="action" value="edit_design">
+                                    <input type="hidden" name="design_id" value="<?= $design['id'] ?>">
+                                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+
+                                    <!-- Current Design Files -->
+                                    <div class="mb-3">
+                                        <label class="form-label">Current Mockup File:</label><br>
+                                        <?php if (!empty($design['mockup_path'])): ?>
+                                            <a href="<?= htmlspecialchars($design['mockup_path']) ?>" target="_blank">View Mockup</a>
+                                        <?php else: ?>
+                                            <span class="text-muted">No Mockup File Uploaded.</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Current Template File:</label><br>
+                                        <?php if (!empty($design['template_path'])): ?>
+                                            <a href="<?= htmlspecialchars($design['template_path']) ?>" target="_blank">View Template</a>
+                                        <?php else: ?>
+                                            <span class="text-muted">No Template File Uploaded.</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Current Neckline File:</label><br>
+                                        <?php if (!empty($design['neckline_path'])): ?>
+                                            <a href="<?= htmlspecialchars($design['neckline_path']) ?>" target="_blank">View Neckline</a>
+                                        <?php else: ?>
+                                            <span class="text-muted">No Neckline File Uploaded.</span>
+                                        <?php endif; ?>
+                                    </div>
+
+                                    <!-- Upload New Design Files -->
+                                    <hr>
+                                    <h5>Upload New Design Files (Optional)</h5>
+                                    <div class="mb-3">
+                                        <label class="form-label">Mockup File</label>
+                                        <input type="file" name="mockup_file" class="form-control" accept=".jpg,.jpeg,.png,.gif,.pdf">
+                                        <small class="form-text text-muted">Accepted types: JPG, PNG, GIF, PDF. Max size: 5MB.</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Template File</label>
+                                        <input type="file" name="template_file" class="form-control" accept=".jpg,.jpeg,.png,.gif,.pdf">
+                                        <small class="form-text text-muted">Accepted types: JPG, PNG, GIF, PDF. Max size: 5MB.</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Neckline File</label>
+                                        <input type="file" name="neckline_file" class="form-control" accept=".jpg,.jpeg,.png,.gif,.pdf">
+                                        <small class="form-text text-muted">Accepted types: JPG, PNG, GIF, PDF. Max size: 5MB.</small>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Upload Files</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <!-- END: Design Modal -->
+
+                <!-- Edit Design Modal: Edit Design Details -->
+                <div class="modal fade" id="editDesignModal<?= $design['id'] ?>" tabindex="-1" aria-labelledby="editDesignModalLabel<?= $design['id'] ?>" aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <form method="POST" enctype="multipart/form-data">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="editDesignModalLabel<?= $design['id'] ?>">Edit Design for <?= htmlspecialchars($design['project_name']) ?></h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <input type="hidden" name="action" value="edit_design">
+                                    <input type="hidden" name="design_id" value="<?= $design['id'] ?>">
+                                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+
+                                    <!-- Design Details -->
+                                    <div class="mb-3">
+                                        <label class="form-label">Design By</label>
+                                        <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($design['name']) ?>" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Color Type (CMYK/RGB)</label>
+                                        <input type="text" name="color_type" class="form-control" value="<?= htmlspecialchars($design['color_type']) ?>" required>
+                                    </div>
+
+                                    <!-- Upload Design Files (Optional) -->
+                                    <hr>
+                                    <h5>Upload New Design Files (Optional)</h5>
+                                    <div class="mb-3">
+                                        <label class="form-label">Mockup File</label>
+                                        <input type="file" name="mockup_file" class="form-control" accept=".jpg,.jpeg,.png,.gif,.pdf">
+                                        <small class="form-text text-muted">Accepted types: JPG, PNG, GIF, PDF. Max size: 5MB.</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Template File</label>
+                                        <input type="file" name="template_file" class="form-control" accept=".jpg,.jpeg,.png,.gif,.pdf">
+                                        <small class="form-text text-muted">Accepted types: JPG, PNG, GIF, PDF. Max size: 5MB.</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Neckline File</label>
+                                        <input type="file" name="neckline_file" class="form-control" accept=".jpg,.jpeg,.png,.gif,.pdf">
+                                        <small class="form-text text-muted">Accepted types: JPG, PNG, GIF, PDF. Max size: 5MB.</small>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <!-- END: Edit Design Modal -->
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
+</div>
+
+<!-- Bootstrap JS Bundle (includes Popper) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Function to update current UTC time
+        function updateDateTime() {
+            const now = new Date();
+            const formatted = now.getUTCFullYear() + '-' + 
+                            String(now.getUTCMonth() + 1).padStart(2, '0') + '-' + 
+                            String(now.getUTCDate()).padStart(2, '0') + ' ' + 
+                            String(now.getUTCHours()).padStart(2, '0') + ':' + 
+                            String(now.getUTCMinutes()).padStart(2, '0') + ':' + 
+                            String(now.getUTCSeconds()).padStart(2, '0');
+            document.querySelector('.top-info-bar .text-end strong').textContent = 
+                'Current Date and Time (UTC): ' + formatted;
+        }
+
+        // Update time every second
+        setInterval(updateDateTime, 1000);
+        updateDateTime(); // Initial call
+
+        // File upload validation
+        document.querySelectorAll('input[type="file"]').forEach(input => {
+            input.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    if (file.size > 5 * 1024 * 1024) { // 5MB
+                        alert('File size exceeds 5MB limit.');
+                        this.value = '';
+                        return;
+                    }
+
+                    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+                    if (!validTypes.includes(file.type)) {
+                        alert('Invalid file type. Please upload JPG, PNG, GIF, or PDF files only.');
+                        this.value = '';
+                        return;
+                    }
+                }
+            });
+        });
+
+        // Disable submit buttons after submission to prevent multiple submissions
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const submitButton = this.querySelector('button[type="submit"]');
+                if (submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+                }
+            });
+        });
+    });
+</script>
+</body>
+</html>
+
+make the design, edit and ready print button to be in row. 

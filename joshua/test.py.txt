@@ -1,0 +1,14 @@
+from transformers import pipeline
+
+# Initialize a summarization pipeline (this uses a pre-trained model from Hugging Face)
+summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+
+# Suppose you have extracted text from "Chapter_I.txt"
+with open("Chapter_I.txt", "r", encoding="utf-8") as f:
+    chapter_text = f.read()
+
+# Summarize the chapter text
+# Note: For long texts, you may need to split it into chunks before summarizing.
+summary = summarizer(chapter_text, max_length=200, min_length=50, do_sample=False)
+print("Summary:")
+print(summary[0]['summary_text'])
